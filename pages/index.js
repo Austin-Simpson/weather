@@ -1,6 +1,8 @@
 import styled from 'styled-components'
 import { useState } from "react"
 import Forecast from '../components/Forecast'
+import useSWR, { SWRConfig } from 'swr'
+import Spinner from '../components/Spinner'
 
 const cities = [
   'Los Angeles',
@@ -10,11 +12,13 @@ const cities = [
   'Buenos Aires'
 ]
 
+const fetcher = url => fetch(url).then(r => r.json())
 
-export default function Home() {
+export default function Home({ fallback }) {
   const [city, setCity] = useState("Los Angeles")
-  
+  const { data, error } = useSWR(`/api/weather/${city}`, fetcher)  
   return (
+    <SWRConfig value={{ fallback }}>
       <Wrapper>
       <Cities>
         { cities.map(c => (
@@ -22,9 +26,25 @@ export default function Home() {
         ))}
       </Cities>
       <ForecastWrapper>
-        <Forecast />
+        <Forecast data={data}/>
       </ForecastWrapper>
-      </Wrapper>)
+      </Wrapper>
+    </SWRConfig>)
+}
+
+export async function getServerSideProps(context) {
+  // get api key from .env.local
+  const key = process.env.WEATHER_API_KEY
+  const city = cities[0]
+  const url = `http://api.weatherapi.com/v1/current.json?key=${key}&q=${city}&aqi=no`
+  // wait for the fetch to resolve and then return the data
+  // this will be a response object
+  const response = await fetch(url)
+  // turn the resopnse into JSON
+  const data = await response.json()
+  return {
+    props: {data}
+  }
 }
 
 const Cities = styled.div`
